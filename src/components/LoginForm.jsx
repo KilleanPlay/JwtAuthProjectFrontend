@@ -1,6 +1,6 @@
 ﻿// src/components/LoginForm.jsx
 import React, { useState } from "react";
-import { loginApi } from "../auth";
+import { loginApi, getRoleFromToken } from "../auth";
 
 export default function LoginForm() {
     const [username, setUsername] = useState("");
@@ -11,8 +11,13 @@ export default function LoginForm() {
         e.preventDefault();
         setError("");
         try {
-            await loginApi(username, password);
-            window.location.href = "/users";
+            const token = await loginApi(username, password);
+            const role = getRoleFromToken(token);
+            if (role === "Admin" || role === "Manager") {
+                window.location.href = "/health";
+            } else {
+                window.location.href = "/users";
+            }
         } catch (err) {
             setError("Kullanıcı adı veya şifre hatalı.");
         }

@@ -1,26 +1,45 @@
-﻿import { jwtDecode } from "jwt-decode";
-import api from "./api";
+﻿// src/auth.js
+import { jwtDecode } from "jwt-decode";
 
-export const loginApi = async (username, password) => {
-    const { data } = await api.post("/login", { username, password });
-    localStorage.setItem("token", data.token);
-    return data;
-};
+// .env desteği: URL -> BASE -> varsayılan
+export const API_BASE =
+    process.env.REACT_APP_API_URL ||
+    process.env.REACT_APP_API_BASE ||
+    "https://localhost:5001";
 
-export const logout = () => localStorage.removeItem("token");
-export const isLoggedIn = () => !!localStorage.getItem("token");
+const TOKEN_KEY = "token";
 
-export const getRole = () => {
-    const t = localStorage.getItem("token");
-    if (!t) return null;
+export async function loginApi(username, password) {
+    const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { token } = await res.json();
+    saveToken(token);
+    return token;
+}
+
+export function saveToken(token) { localStorage.setItem(TOKEN_KEY, token); }
+export function getToken() { return localStorage.getItem(TOKEN_KEY); }
+export function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+export function getRoleFromToken(token = getToken()) {
+    if (!token) return null;
     try {
-        const d = jwtDecode(t); // ✅ burada değişti
-        return (
-            d["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
-            d.role ||
-            null
-        );
+        const d = jwtDecode(token);
+        return d.role ?? d["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ?? null;
     } catch {
         return null;
     }
-};
+}
+
+// 🔽 Geriye dönük uyumluluk: eski kod "getRole" istiyor
+export function getRole(token = getToken()) {
+    return getRoleFromToken(token);
+}
+
+export function isLoggedIn() {
+    return !!getToken();
+}

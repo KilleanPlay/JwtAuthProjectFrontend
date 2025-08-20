@@ -1,4 +1,4 @@
-﻿// src/pages/UsersPage.jsx
+﻿// src/pages/UsersPage.jsx  (ÜZERİNE YAZ)
 import React, { useEffect, useState } from "react";
 import api from "../api";
 import { getRole } from "../auth";
@@ -6,6 +6,20 @@ import { Link } from "react-router-dom";
 
 const roleMap = { 0: "Admin", 1: "Chief", 2: "Manager", 3: "Staff" };
 const asRoleText = (r) => (typeof r === "number" ? (roleMap[r] ?? r) : r);
+
+// Her türlü JSON şekline uyumlu normalizasyon:
+//  - [ ... ]  (dizi)
+//  - { users: [...] }
+//  - { $values: [...] }     (bazı serializer'lar)
+//  - { data: [...] }, { result: [...] }
+function toArray(data) {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.users)) return data.users;
+    if (Array.isArray(data?.$values)) return data.$values;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.result)) return data.result;
+    return [];
+}
 
 export default function UsersPage() {
     const [rows, setRows] = useState([]);
@@ -17,20 +31,21 @@ export default function UsersPage() {
         setLoading(true);
         setErr("");
         try {
-            const res = await api.get("/User/users");
-            setRows(res.data || []);
+            // fetch-tabanlı api: r.json() ile gövdeyi al
+            const r = await api.get("/User/users");
+            const raw = await r.json();
+            const list = toArray(raw);
+            setRows(list);
         } catch (e) {
-            setErr("Kullanıcılar yüklenirken bir hata oluştu.");
             console.error(e);
+            setErr("Kullanıcılar yüklenirken bir hata oluştu.");
+            setRows([]);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        load();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    useEffect(() => { load(); }, []);
 
     return (
         <div style={{ maxWidth: 980, margin: "40px auto" }}>
@@ -63,7 +78,7 @@ export default function UsersPage() {
                         {rows.map((u) => (
                             <tr key={u.id}>
                                 <td>{u.id}</td>
-                                <td>{u.username}</td>
+                                <td>{u.username ?? u.userName ?? u.name}</td>
                                 <td>{asRoleText(u.role)}</td>
                                 <td>{u.email || "-"}</td>
                                 <td>{u.phone || "-"}</td>

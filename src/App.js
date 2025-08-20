@@ -1,64 +1,49 @@
-﻿// src/App.js
+﻿// src/App.js   (ROTA eklenmiş tam sürüm)
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LoginForm from "./components/LoginForm"; // components (küçük)
+import { Routes, Route, Link } from "react-router-dom";
+import LoginForm from "./components/LoginForm";
 import UsersPage from "./pages/UsersPage";
 import AdminManage from "./pages/AdminManage";
-import { isLoggedIn, getRole, logout } from "./auth";
+import HealthPage from "./pages/HealthPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { clearToken, getRoleFromToken, isLoggedIn } from "./auth";
+import "./App.css";
 
-function PrivateRoute({ children }) {
-    return isLoggedIn() ? children : <Navigate to="/login" replace />;
-}
-
-function RoleRoute({ allowed, children }) {
-    const r = getRole();
-    return allowed.includes(r) ? children : <Navigate to="/users" replace />;
+function Nav() {
+    const logged = isLoggedIn();
+    const role = getRoleFromToken();
+    return (
+        <div style={{ display: "flex", gap: 16, padding: "12px 20px", borderBottom: "1px solid #eee" }}>
+            <Link to="/">Home</Link>
+            <Link to="/users">Users</Link>
+            {(role === "Admin" || role === "Manager") && <Link to="/health">Health</Link>}
+            <div style={{ marginLeft: "auto" }}>
+                {logged ? (
+                    <button onClick={() => { clearToken(); window.location.href = "/login"; }}>Logout</button>
+                ) : <Link to="/login">Login</Link>}
+            </div>
+        </div>
+    );
 }
 
 export default function App() {
     return (
-        <BrowserRouter>
+        <>
+            <Nav />
             <Routes>
+                <Route path="/" element={<div style={{ padding: 20 }}>Hoş geldin</div>} />
                 <Route path="/login" element={<LoginForm />} />
-
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/admin" element={<AdminManage />} />
                 <Route
-                    path="/users"
+                    path="/health"
                     element={
-                        <PrivateRoute>
-                            <UsersPage />
-                        </PrivateRoute>
+                        <ProtectedRoute allowed={["Admin", "Manager"]}>
+                            <HealthPage />
+                        </ProtectedRoute>
                     }
-                />
-
-                <Route
-                    path="/admin"
-                    element={
-                        <PrivateRoute>
-                            <RoleRoute allowed={["Admin", "Manager"]}>
-                                <AdminManage />
-                            </RoleRoute>
-                        </PrivateRoute>
-                    }
-                />
-
-                <Route
-                    path="*"
-                    element={<Navigate to={isLoggedIn() ? "/users" : "/login"} replace />}
                 />
             </Routes>
-
-            {isLoggedIn() && (
-                <div style={{ position: "fixed", right: 16, bottom: 16 }}>
-                    <button
-                        onClick={() => {
-                            logout();
-                            window.location.href = "/login";
-                        }}
-                    >
-                        Çıkış Yap
-                    </button>
-                </div>
-            )}
-        </BrowserRouter>
+        </>
     );
 }
